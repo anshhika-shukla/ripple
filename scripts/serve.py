@@ -1,7 +1,8 @@
 """Start a local web server for the RIPPLE dashboard, results, impact charts and code maps."""
 
 import http.server
-import socketserver
+import shutil
+import subprocess
 import sys
 import webbrowser
 from pathlib import Path
@@ -42,14 +43,18 @@ def main():
     print("=" * 60)
     print("Press Ctrl+C to stop the server.\n")
 
-    # Automatically open browser
+    # Open the browser: on WSL use the Windows browser (Linux has none, and gio prints an error).
     try:
-        webbrowser.open(url)
+        if shutil.which("explorer.exe"):
+            subprocess.Popen(["explorer.exe", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            webbrowser.open(url)
     except Exception:
-        pass
+        print(f"Open {url} in your browser.")
 
     try:
-        with socketserver.TCPServer(("127.0.0.1", port), Handler) as httpd:
+        # Threaded: browsers keep idle connections open, which would block a one-at-a-time server.
+        with http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler) as httpd:
             httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nServer stopped.")
